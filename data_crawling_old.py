@@ -86,7 +86,7 @@ def movie_detail_crawling(start, end, file_name):
 	global df
 
 	for index in range(start, end):
-		url = "https://api.themoviedb.org/3/movie/" +  str(df['id'][index]) + "?language=en-US"
+		url = "https://api.themoviedb.org/3/movie/" + str(df['id'][index]) + "?language=en-US"
 		headers = {"accept": "application/json",
 	 	 		   "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU"}
 		response = rq.get(url, headers=headers)

@@ -1,153 +1,183 @@
-import numpy as np
+import os
+import time
+import argparse
 import pandas as pd
 import requests as rq
-import multiprocessing as mp
-import time
-# https://developer.themoviedb.org/reference/intro/getting-started
-# API key: d21a8139891f4454bb72c094df982311
-# API read access key: eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU
-def multiprocessing(target_function, file_name, lower_bound, upper_bound) -> None:
-	# spawn: start a new Python process. -> slow but safe
-	# fork: copy a Python process from an existing process. -> fast but unsafe
-	# Default on each platform:
-	# 	+ Windows (win32): spawn
-	# 	+ macOS (darwin): spawn
-	# 	+ Linux (unix): fork
-	start_method = mp.get_start_method()
-	
-	# Num of processes in each interval
-	num_of_processes = 10
-	step = 10000
+from tqdm import tqdm
+from pprint import pprint as pp
+from multiprocessing.pool import Pool
 
-	process_lst = []
-	for i in range((upper_bound // step)+1):
-		start = lower_bound + step*i
-		end = start + step
-		
-		if end > upper_bound:
-			end = upper_bound
-		interval = abs(start - end)
-		pivot = int(interval // num_of_processes)
+class Crawler:
+    def __init__(self, file_name: str, start_year: int, end_year: int,
+                 headers: dict, url: str, lang: str, process_counter: int) -> None:
+        self.__file_name = file_name
+        self.__start_year = start_year
+        self.__end_year = end_year
+        self.__headers = headers
+        self.__url = url
+        self.__lang = lang
+        self.__process_counter = process_counter
 
-		for j in range(0, interval//pivot):
-			if start + pivot*(j+2) > end:
-				p = mp.Process(target=target_function, args=(start + pivot*j, end, file_name))
-				print('Start: {}, end: {}, from {} to {}'.format(start + pivot*j, end, start, end))
-			else:
-				p = mp.Process(target=target_function, args=(start + pivot*j, start + pivot*(j+1), file_name))
-				print('Start: {}, end: {}, from {} to {}'.format(start + pivot*j, start + pivot*(j+1), start, end))
-			process_lst.append(p)
+    # Set-Get
+    @property
+    def start_year(self):
+        return self.__start_year
 
-		if end == upper_bound:
-			break
-			
-	for process in process_lst:
-		process.start()
-	
-	for process in process_lst:
-	 	process.join()
-	return None
+    @start_year.setter
+    def start_year(self, value):
+        self.__start_year = value
 
+    @property
+    def end_year(self):
+        return self.__end_year
 
-def get_total_pages(year):
-		# Query total pages for each year
-		language = "language=en-US&"
-		year = "year="+str(year)+"&"
-		# Query every page in each year
-		# page should be range from 1 to 500
-		url = "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&"+language+year
-		headers = {"accept": "application/json",
-	    		   "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU"}
+    @end_year.setter
+    def end_year(self, value):
+        self.__end_year = value
 
-		total_pages = rq.get(url, headers=headers).json()['total_pages']
-		total_pages = min(total_pages, 500)
-		return total_pages
+    @property
+    def lang(self):
+        return self.__lang
 
+    @lang.setter
+    def lang(self, value):
+        self.__lang = value
 
-def metadata_crawling(start, end, file_name):
-	for year in range(start, end):
-		total_pages = get_total_pages(year)
+    @property
+    def url(self):
+        return self.__url
 
-		for page in range(1, total_pages+1):
-			language = "language=en-US&"
-			url = "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&"+language+"year="+str(year)+"&"+"page="+str(page)
-			headers = {"accept": "application/json",
-					   "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU"}
-			
-			response = rq.get(url, headers=headers)
-			result = response.json()['results']
-			df = pd.DataFrame(result)
-			df.to_csv(file_name, mode='a', index=False, header=False)
-			print('Finished page ' + str(page) + ' of year ' + str(year) + ' in ' + str(start) + ' and ' + str(end))
-	return None
+    @url.setter
+    def url(self, value):
+        self.__url = value
 
+    @property
+    def file_name(self):
+        return self.__file_name
 
-def movie_detail_crawling(start, end, file_name):
-	global df
+    @file_name.setter
+    def file_name(self, value):
+        self.__file_name = value
 
-	for index in range(start, end):
-		url = "https://api.themoviedb.org/3/movie/" +  str(df['id'][index]) + "?language=en-US"
-		headers = {"accept": "application/json",
-	 	 		   "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU"}
-		response = rq.get(url, headers=headers)
-		result = response.json()
+    @property
+    def headers(self):
+        return self.__headers
 
-		cols = ['adult', 'backdrop_path', 'belongs_to_collection', 'budget', 'genres', 'homepage', 'id', 'imdb_id', 'original_language', 'original_title', 'overview', 'popularity', 'poster_path', 'production_companies', 'production_countries', 'release_date', 'revenue', 'runtime', 'spoken_languages', 'status', 'tagline', 'title', 'video', 'vote_average', 'vote_count']
-		
-		df = pd.json_normalize(result)
-		adult
-		backdrop_path
-		belongs_to_collection
-		budget
-		genres
-		homepage
-		id
-		imdb_id
-		original_language
-		original_title
-		overview
-		popularity
-		poster_path
-		production_companies
-		production_countries
-		release_date
-		revenue
-		runtime
-		spoken_languages
-		status
-		tagline
-		title
-		video
-		vote_average
-		vote_count
+    @headers.setter
+    def headers(self, value):
+        self.__headers = value
 
+    @property
+    def process_counter(self):
+        return self.__process_counter
 
-		
-	# 	df.to_csv(file_name, mode='a', index=False, header=False)
-	# 	print('Finished line: ' + str(index) + ' from ' + str(start) + ' to ' + str(end))
-	# 	time.sleep(0.5)
-	return None
+    @process_counter.setter
+    def process_counter(self, process_counter: int):
+        self.__process_counter = process_counter
+
+    # Support methods
+    def __GetTotalPages(self, year) -> int:
+        # Get total pages for each year
+        # page should be range from 1 to 500
+        url = self.__url + self.__lang + "year=" + str(year)
+
+        total_pages = rq.get(url, headers=self.__headers).json()['total_pages']
+        total_pages = min(total_pages, 500)  # ???
+        return total_pages
+
+    def __GetFields(self, year: int) -> list:
+        url = self.__url + self.__lang + "year=" + str(year)
+        fields = rq.get(url, headers=self.__headers).json()["results"][0].keys()
+        return fields
+
+    def __FieldsWriting(self, year: int = 1920) -> None:
+        # Write header to output file
+        fields = self.__GetFields(year)
+        df = pd.DataFrame(columns=fields)
+        df.to_csv(self.__file_name, mode='w', index=False)
+        return None
+
+    def Crawl(self):
+        if options.file_extension == "csv":
+            self.__FieldsWriting()
+
+        # Start crawling
+        for year in tqdm(range(self.__start_year, self.__end_year), position=self.__process_counter,
+                         desc=f"{self.__start_year} to {self.__end_year}", colour='white'):
+            total_pages = self.__GetTotalPages(year)
+
+            for page in range(1, total_pages+1):
+                url = self.__url + self.__lang + "year=" + str(year) + "&" + "page=" + str(page)
+
+                response = rq.get(url, headers=self.__headers)
+
+                try:
+                    result = response.json()['results']
+                    # save to file
+                    if options.file_extension == "json":
+                        pd.DataFrame(result).to_json(self.__file_name, mode='a', orient="records", indent=4, lines=True)
+                    elif options.file_extension == "csv":
+                        pd.DataFrame(result).to_csv(self.__file_name, mode='a', header=False, index=False)
+                except:
+                    continue
+        return None
+
+def execute_crawling(file_name: str, start_year: int, end_year: int,
+                     headers: dict, url: str, lang: str, process_counter) -> None:
+    crawler = Crawler(file_name, start_year, end_year, headers, url, lang, process_counter)
+    crawler.Crawl()
 
 
+def set_up_crawling() -> None:
+    pool = Pool(processes=options.num_of_processes)
+    options.file_name = os.path.join(options.save_path, 'raw_data', f"metadata.{options.file_extension}")
+
+    process_counter = 0
+    lower_bound = options.start_year
+    interval = (options.end_year - options.start_year) // options.num_of_processes
+
+    # map to multiprocesses
+    configurations = []
+    while lower_bound + interval < options.end_year:
+        # remaining years will be handled after this while loop
+        configurations.append((options.file_name, lower_bound, lower_bound+interval,
+                               options.headers, options.url, options.lang, process_counter))
+        # Update
+        lower_bound += interval
+        process_counter += 1
+
+    # Handle remaining years
+    configurations.append((options.file_name, lower_bound, options.end_year,
+                           options.headers, options.url, options.lang, process_counter))
+
+    # creates multiprocesses in pool
+    pool.starmap(func=execute_crawling, iterable=configurations)
+    return None
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--lang", type=str, default="language=en-US&")
+parser.add_argument("--headers", type=dict, default={"accept": "application/json","Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU"})
+parser.add_argument("--start_year", type=int, default=1920)
+parser.add_argument("--end_year", type=int, default=2024)
+parser.add_argument("--num_of_processes", type=int, default=50)
+parser.add_argument("--save_path", type=str, default=os.path.join(os.getcwd(), "data"))
+parser.add_argument("--file_extension", type=str, default="json")
+parser.add_argument("--url", type=str)
+parser.add_argument("--file_name", type=str)
+options = parser.parse_args()
+def main() -> None:
+    metadata = {"url": ["https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&",
+                        "https://api.themoviedb.org/3/movie/"],
+                "file_name": ["metadata", "movie_detail"]
+                }
+    # for i in range(len(metadata["url"])):
+    for i in range(1):
+        options.url = metadata["url"][i]
+        options.file_name = metadata["file_name"][i]
+        set_up_crawling()
+    return None
 
 
 if __name__ == '__main__':
-	# cols = ["adult","backdrop_path","genre_ids","id","original_language","original_title","overview","popularity","poster_path","release_date","title","video","vote_average","vote_count"]
-	# file_name = 'metadata.csv'
-	# df = pd.DataFrame(columns=cols)
-	# df.to_csv(file_name, mode='w', index=False)
-	
-	# multiprocessing(metadata_crawling, file_name, 1882, 2023)
-	# df = pd.read_csv('metadata.csv', lineterminator='\n')
-	# df = df.drop_duplicates(subset=['id'])
-	# df.to_excel('metadata.xlsx', index=False)
-
-
-
-	cols = ['adult', 'backdrop_path', 'belongs_to_collection', 'budget', 'genres', 'homepage', 'id', 'imdb_id', 'original_language', 'original_title', 'overview', 'popularity', 'poster_path', 'production_companies', 'production_countries', 'release_date', 'revenue', 'runtime', 'spoken_languages', 'status', 'tagline', 'title', 'video', 'vote_average', 'vote_count']
-	file_name = 'movie_detail.csv'
-	df = pd.DataFrame(columns=cols)
-	df.to_csv(file_name, mode='w', index=False)
-
-	df = pd.read_csv('metadata.csv', lineterminator='\n')
-	multiprocessing(movie_detail_crawling, file_name, 0, len(df)-1)
+    main()
