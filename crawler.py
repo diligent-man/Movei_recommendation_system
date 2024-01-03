@@ -124,7 +124,7 @@ class Crawler:
 
         # start crawling
         for year in tqdm(range(self.__start_year, self.__end_year), position=self.__process_counter,
-                         desc=f"{self.__start_year} to {self.__end_year}", colour='white'):
+                         desc=f"Process: {file_prefix:3s} {self.__start_year} to {self.__end_year}", colour='white'):
             total_pages = self.__GetTotalPages(year)
 
             # Crawl page by page -- 1 page comprises 20 results
@@ -140,9 +140,7 @@ class Crawler:
                     if len(result) != 0:
                         with open(file=file_name, mode="a", encoding="UTF-8") as f:
                             for json_object in result:
-                                f.write(json_object)
-                                f.write(",")
-                                f.write("\n")
+                                f.write(json_object + ",\n")
                 except Exception as e:
                     print(e)
         return None
@@ -157,6 +155,7 @@ def execute_metadata_crawling(data_path:str, file_name: str, start_year: int, en
 
 
 def set_up_metadata_crawling() -> None:
+    start_time = time.time()
     global options
     pool = Pool(processes=options.num_of_processes)
 
@@ -180,6 +179,7 @@ def set_up_metadata_crawling() -> None:
 
     # creates multiprocesses in pool
     pool.starmap(func=execute_metadata_crawling, iterable=configurations)
+    print("Finished crawl in:", time.time() - start_time)
     return None
 
 
@@ -222,31 +222,56 @@ parser.add_argument("--file_name", type=str)
 options = parser.parse_args()
 
 
+from json import JSONDecoder, JSONDecodeError
+import re
+
+NOT_WHITESPACE = re.compile(r'\S')
+
+
+def decode_json(document: str, pos=0, decoder=JSONDecoder()):
+    while True:
+        match = NOT_WHITESPACE.search(document, pos)
+        if not match:
+            return
+        pos = match.start()
+
+        try:
+            obj, pos = decoder.raw_decode(document, pos)
+        except JSONDecodeError as e:
+            print(e)
+            # do something sensible if there's some error
+            raise
+        yield obj
+
 def merge_tmp_file():
     global options
-
     path = os.path.join(options.data_path, "raw_data")
     file_lst = os.listdir(path)
+    file_name = f"{options.file_name}.{options.file_extension}"
 
     # remove metadata.json if it exists
-    if options.file_name in file_lst:
-        file_lst = file_lst.remove(options.file_name)
-        os.remove(os.path.join(path, options.file_name))
+    if file_name in file_lst:
+        file_lst.remove(file_name)
+        os.remove(os.path.join(path, file_name))
+        print("metadata.json has been deleted")
 
-    with open(file=os.path.join(path, options.file_name), mode="w", encoding="UTF-8") as writer:
-        for file in file_lst:
-            with open(file=os.path.join(path, file), mode="r", encoding="UTF-8") as reader:
-                data = json.loads(reader.read())
-                data = pd.json_normalize(data)
+    # Merge into one file
+    with open(file=os.path.join(path, f"{options.file_name}.{options.file_extension}"), mode="w", encoding="UTF-8") as writer:
+        for i in range(len(file_lst)):
+            with open(file=os.path.join(path, file_lst[i]), mode="r", encoding="UTF-8") as reader:
+                print(type(reader.read()))
+                # for obj in decode_stacked(reader.read()):
+
+
+                # data = pd.json_normalize(data)
                 # writer.write(json.dumps(data, indent=4))
 def main() -> None:
 
     # Metadata crawling
     options.url = "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&"
     options.file_name = "metadata"
-    set_up_metadata_crawling()
-    # merge_tmp_file()
-
+    # set_up_metadata_crawling()
+    merge_tmp_file()
 
     # Movie detail crawling
     # metadata_path = os.path.join(options.save_path, f"{options.file_name}.{options.file_extension}")
