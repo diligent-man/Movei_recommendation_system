@@ -4,12 +4,12 @@ import json
 import argparse
 import pandas as pd
 import requests as rq
+import multiprocessing as mp
+
 from tqdm import tqdm
 from pprint import pprint as pp
-import multiprocessing as mp
+from json_decoder import json_decoder
 from multiprocessing.pool import Pool
-
-from typing import List
 
 
 class Crawler:
@@ -150,7 +150,6 @@ def execute_metadata_crawling(data_path:str, file_name: str, start_year: int, en
                               headers: dict, url: str, lang: str, process_counter) -> None:
     crawler = Crawler(data_path, file_name, start_year, end_year, headers, url, lang, process_counter)
     crawler.MetadataCrawler()
-
     return None
 
 
@@ -222,28 +221,7 @@ parser.add_argument("--file_name", type=str)
 options = parser.parse_args()
 
 
-from json import JSONDecoder, JSONDecodeError
-import re
-
-NOT_WHITESPACE = re.compile(r'\S')
-
-
-def decode_json(document: str, pos=0, decoder=JSONDecoder()):
-    while True:
-        match = NOT_WHITESPACE.search(document, pos)
-        if not match:
-            return
-        pos = match.start()
-
-        try:
-            obj, pos = decoder.raw_decode(document, pos)
-        except JSONDecodeError as e:
-            print(e)
-            # do something sensible if there's some error
-            raise
-        yield obj
-
-def merge_tmp_file():
+def merge_tmp_file(delete_tmp_file=False):
     global options
     path = os.path.join(options.data_path, "raw_data")
     file_lst = os.listdir(path)
@@ -259,19 +237,25 @@ def merge_tmp_file():
     with open(file=os.path.join(path, f"{options.file_name}.{options.file_extension}"), mode="w", encoding="UTF-8") as writer:
         for i in range(len(file_lst)):
             with open(file=os.path.join(path, file_lst[i]), mode="r", encoding="UTF-8") as reader:
-                print(type(reader.read()))
-                # for obj in decode_stacked(reader.read()):
+                for obj in next(json_decoder(reader.read())):
+                    writer.write(json.dumps(obj, indent=4) + "\n")
+            if i == 1:
+                print(i, " file has been written")
+            else:
+                print(i, " file have been written")
 
+    # Delete temp files
+    if delete_tmp_file:
+        for file in file_lst:
+            os.remove(os.path.join(path, file))
+        print("Temp files have been removed")
 
-                # data = pd.json_normalize(data)
-                # writer.write(json.dumps(data, indent=4))
 def main() -> None:
-
     # Metadata crawling
     options.url = "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&"
     options.file_name = "metadata"
     # set_up_metadata_crawling()
-    merge_tmp_file()
+    # merge_tmp_file()
 
     # Movie detail crawling
     # metadata_path = os.path.join(options.save_path, f"{options.file_name}.{options.file_extension}")
