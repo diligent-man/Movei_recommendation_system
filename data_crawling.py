@@ -8,6 +8,8 @@ from tqdm import tqdm
 from pprint import pprint as pp
 from multiprocessing.pool import Pool
 
+from typing import List
+
 
 class Crawler:
     def __init__(self, file_name: str, start_year: int, end_year: int,
@@ -93,53 +95,63 @@ class Crawler:
         return fields
 
     def __FieldsWriting(self, year: int = 1920) -> None:
+        """
+        Args:
+            year:
+
+        Returns: Fields for writing at the beginning of csv file
+
+        """
         # Write header to output file
         fields = self.__GetFields(year)
         df = pd.DataFrame(columns=fields)
         df.to_csv(self.__file_name, mode='w', index=False)
         return None
 
+
+    # Main Methods
     def MetadataCrawler(self):
         if options.file_extension == "csv":
             self.__FieldsWriting()
 
         # Start crawling
-        with open(file=self.__file_name, mode="a", encoding="UTF-8") as f:
-            # JSON format: [{obj1},
-            #               {obj2},
-            #               {obj3}
-            #               ]
-            f.write("[\n")
-            for year in tqdm(range(self.__start_year, self.__end_year), position=self.__process_counter,
-                             desc=f"{self.__start_year} to {self.__end_year}", colour='white'):
-                total_pages = self.__GetTotalPages(year)
-                print(f"total pages: {total_pages}, year: {year}") # Tracking info
+        # JSON format: [
+        #               {obj1},
+        #               {obj2},
+        #               {obj3}
+        #               ]
+        # Don't forget to add "[" and "]" at the beginning and end of file after crawling procedure finished
+        for year in tqdm(range(self.__start_year, self.__end_year), position=self.__process_counter,
+                         desc=f"{self.__start_year} to {self.__end_year}", colour='white'):
+            total_pages = self.__GetTotalPages(year)
+            # print(f"total pages: {total_pages}, year: {year}") # Tracking info
 
-                # Crawl page by page - 1 page comprises 20 results
-                for page in range(1, total_pages+1):
-                    url = self.__url + self.__lang + "year=" + str(year) + "&" + "page=" + str(page)
-                    response = rq.get(url, headers=self.__headers)
+            # Crawl page by page - 1 page comprises 20 results
+            for page in range(1, total_pages + 1):
+                url = self.__url + self.__lang + "year=" + str(year) + "&" + "page=" + str(page)
+                response = rq.get(url, headers=self.__headers)
 
-                    # Test "results" field is available or not
-                    try:
-                        result: list = response.json()["results"]
-                        result: str = json.dumps(result)[1:-1]
+                # Test "results" field is available or not
+                try:
+                    result: list = response.json()["results"]
+                    result: List[str] = [json.dumps(json_object, indent=4) for json_object in result]
+                    # save to file
+                    if options.file_extension == "json" and len(result) != 0:
+                        with open(file=self.__file_name, mode="a", encoding="UTF-8") as f:
+                            for json_object in result:
+                                f.write(json_object)
+                                f.write(",")
+                                f.write("\n")
 
-                        # result = pd.json_normalize(result)
-                        # result = json.loads(result)
-                        # save to file
-                        if options.file_extension == "json":
-                            f.write(result)
-                            f.write(",")
-                        elif options.file_extension == "csv":
-                            pd.DataFrame(result).to_csv(self.__file_name, mode='a', header=False, index=False)
-                    except:
-                        print("error")
-                f.write("[")
+                    elif options.file_extension == "csv":
+                        pd.DataFrame(result).to_csv(self.__file_name, mode='a', header=False, index=False)
+                except Exception as e:
+                    print(e)
         return None
 
+
 def execute_metadata_crawling(file_name: str, start_year: int, end_year: int,
-                     headers: dict, url: str, lang: str, process_counter) -> None:
+                              headers: dict, url: str, lang: str, process_counter) -> None:
     crawler = Crawler(file_name, start_year, end_year, headers, url, lang, process_counter)
     crawler.MetadataCrawler()
     return None
@@ -159,7 +171,7 @@ def set_up_metadata_crawling() -> None:
     configurations = []
     while lower_bound + interval < options.end_year:
         # remaining years will be handled after this while loop
-        configurations.append((options.file_name, lower_bound, lower_bound+interval,
+        configurations.append((options.file_name, lower_bound, lower_bound + interval,
                                options.headers, options.url, options.lang, process_counter))
         # Update
         lower_bound += interval
@@ -172,6 +184,7 @@ def set_up_metadata_crawling() -> None:
     # creates multiprocesses in pool
     pool.starmap(func=execute_metadata_crawling, iterable=configurations)
     return None
+
 
 def set_up_movie_detail_crawling(metadata_path: str) -> None:
     global options
@@ -188,7 +201,6 @@ def set_up_movie_detail_crawling(metadata_path: str) -> None:
 
     # df = pd.json_normalize(df)
 
-
     # json.decoder.JSONDecodeError: Extra data: line 23 column 2 (char 756)
     # Solution ref: https://bobbyhadz.com/blog/python-jsondecodeerror-extra-data
 
@@ -198,13 +210,13 @@ def set_up_movie_detail_crawling(metadata_path: str) -> None:
     # print(df)
 
 
-    
 parser = argparse.ArgumentParser()
 parser.add_argument("--lang", type=str, default="language=en-US&")
-parser.add_argument("--headers", type=dict, default={"accept": "application/json","Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU"})
+parser.add_argument("--headers", type=dict, default={"accept": "application/json",
+                                                     "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU"})
 parser.add_argument("--start_year", type=int, default=1920)
 parser.add_argument("--end_year", type=int, default=2024)
-parser.add_argument("--num_of_processes", type=int, default=1)
+parser.add_argument("--num_of_processes", type=int, default=25)
 parser.add_argument("--save_path", type=str, default=os.path.join(os.getcwd(), "data", "raw_data"))
 parser.add_argument("--file_extension", type=str, default="json")
 # key, url, file_name: depend on what will be crawled
@@ -213,16 +225,16 @@ parser.add_argument("--url", type=str)
 parser.add_argument("--file_name", type=str)
 options = parser.parse_args()
 
+
 def main() -> None:
     options.url = "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&"
     options.file_name = "metadata"
     set_up_metadata_crawling()
 
-
-    # metadata_path = os.path.join(options.save_path, f"{options.file_name}.{options.file_extension}")
-    # options.url = "https://api.themoviedb.org/3/movie/"
-    # options.file_name = "movie_detail"
-    # set_up_movie_detail_crawling(metadata_path)
+    metadata_path = os.path.join(options.save_path, f"{options.file_name}.{options.file_extension}")
+    options.url = "https://api.themoviedb.org/3/movie/"
+    options.file_name = "movie_detail"
+    set_up_movie_detail_crawling(metadata_path)
     return None
 
 
