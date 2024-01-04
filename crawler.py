@@ -8,14 +8,17 @@ import multiprocessing as mp
 
 from tqdm import tqdm
 from pprint import pprint as pp
+
+from typing import List
+
 from json_decoder import json_decoder
 from multiprocessing.pool import Pool
 
 
 class Crawler:
-    def __init__(self, data_path: str, file_name: str, start_year: int, end_year: int,
+    def __init__(self, save_path: str, file_name: str, start_year: int, end_year: int,
                  headers: dict, url: str, lang: str, process_counter: int) -> None:
-        self.__data_path = data_path
+        self.__save_path = save_path
         self.__file_name = file_name
         self.__start_year = start_year
         self.__end_year = end_year
@@ -27,12 +30,12 @@ class Crawler:
 
     # Set-Get
     @property
-    def data_path(self):
-        return self.__data_path
+    def save_path(self):
+        return self.__save_path
 
-    @data_path.setter
-    def data_path(self, value):
-        self.__data_path = value
+    @save_path.setter
+    def save_path(self, value):
+        self.__save_path = value
 
     @property
     def start_year(self):
@@ -101,10 +104,6 @@ class Crawler:
         total_pages = min(total_pages, 500)
         return total_pages
 
-    def __GetFields(self, year: int) -> list:
-        url = self.__url + self.__lang + "year=" + str(year)
-        fields = rq.get(url, headers=self.__headers).json()["results"][0].keys()
-        return fields
 
     # Main Methods
     def MetadataCrawler(self):
@@ -120,7 +119,7 @@ class Crawler:
         """
         # write each process into separate file and merge 'em later
         file_prefix = mp.current_process().name.split("-")[1]
-        file_name = os.path.join(options.data_path, "raw_data", f"{file_prefix}_{self.__file_name}.{options.file_extension}")
+        file = os.path.join(self.__save_path, f"{file_prefix}_{self.__file_name}.{options.file_extension}")
 
         # start crawling
         for year in tqdm(range(self.__start_year, self.__end_year), position=self.__process_counter,
@@ -138,7 +137,7 @@ class Crawler:
                     result: List[str] = [json.dumps(json_object, indent=4) for json_object in result]
                     # save to file
                     if len(result) != 0:
-                        with open(file=file_name, mode="a", encoding="UTF-8") as f:
+                        with open(file=file, mode="a", encoding="UTF-8") as f:
                             for json_object in result:
                                 f.write(json_object + ",\n")
                 except Exception as e:
@@ -146,9 +145,9 @@ class Crawler:
         return None
 
 
-def execute_metadata_crawling(data_path:str, file_name: str, start_year: int, end_year: int,
+def execute_metadata_crawling(save_path:str, file_name: str, start_year: int, end_year: int,
                               headers: dict, url: str, lang: str, process_counter) -> None:
-    crawler = Crawler(data_path, file_name, start_year, end_year, headers, url, lang, process_counter)
+    crawler = Crawler(save_path, file_name, start_year, end_year, headers, url, lang, process_counter)
     crawler.MetadataCrawler()
     return None
 
@@ -156,24 +155,28 @@ def execute_metadata_crawling(data_path:str, file_name: str, start_year: int, en
 def set_up_metadata_crawling() -> None:
     start_time = time.time()
     global options
-    pool = Pool(processes=options.num_of_processes)
 
+    # Init
     process_counter = 0
+
     lower_bound = options.start_year
-    interval = (options.end_year - options.start_year) // options.num_of_processes
+    interval = (options.end_year - options.start_year) // (options.num_of_processes - 1)  # last process handles remaining years
+
+    pool = Pool(processes=options.num_of_processes)
+    save_path = os.path.join(options.data_path, "metadata")
 
     # map to multiprocesses
     configurations = []
     while lower_bound + interval < options.end_year:
         # remaining years will be handled after this while loop
-        configurations.append((options.data_path, options.file_name, lower_bound, lower_bound + interval,
+        configurations.append((save_path, options.file_name, lower_bound, lower_bound + interval,
                                options.headers, options.url, options.lang, process_counter))
         # Update
         lower_bound += interval
         process_counter += 1
 
     # Handle remaining years
-    configurations.append((options.data_path, options.file_name, lower_bound, options.end_year,
+    configurations.append((save_path, options.file_name, lower_bound, options.end_year,
                            options.headers, options.url, options.lang, process_counter))
 
     # creates multiprocesses in pool
@@ -213,7 +216,7 @@ parser.add_argument("--headers", type=dict, default={"accept": "application/json
 parser.add_argument("--start_year", type=int, default=1920)
 parser.add_argument("--end_year", type=int, default=2024)
 parser.add_argument("--num_of_processes", type=int, default=25)
-parser.add_argument("--data_path", type=str, default=os.path.join(os.getcwd(), "data"))
+parser.add_argument("--data_path", type=str, default=os.path.join(os.getcwd(), "data", "raw_data"))
 parser.add_argument("--file_extension", type=str, default="json")
 # url, file_name: depend on what will be crawled
 parser.add_argument("--url", type=str)
@@ -221,9 +224,9 @@ parser.add_argument("--file_name", type=str)
 options = parser.parse_args()
 
 
-def merge_tmp_file(delete_tmp_file=False):
+def merge_tmp_file(dir: str, delete_tmp_file=False):
     global options
-    path = os.path.join(options.data_path, "raw_data")
+    path = os.path.join(options.data_path, "raw_data", dir)
     file_lst = os.listdir(path)
     file_name = f"{options.file_name}.{options.file_extension}"
 
@@ -254,8 +257,8 @@ def main() -> None:
     # Metadata crawling
     options.url = "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&"
     options.file_name = "metadata"
-    # set_up_metadata_crawling()
-    # merge_tmp_file()
+    set_up_metadata_crawling()
+    merge_tmp_file(dir="metadata")
 
     # Movie detail crawling
     # metadata_path = os.path.join(options.save_path, f"{options.file_name}.{options.file_extension}")
