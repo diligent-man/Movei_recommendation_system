@@ -2,6 +2,8 @@ import os
 import time
 import json
 import argparse
+from argparse import Namespace
+
 import pandas as pd
 import requests as rq
 import multiprocessing as mp
@@ -16,82 +18,25 @@ from multiprocessing.pool import Pool
 
 
 class Crawler:
-    def __init__(self, save_path: str, file_name: str, start_year: int, end_year: int,
-                 headers: dict, url: str, lang: str, process_counter: int) -> None:
-        self.__save_path = save_path
-        self.__file_name = file_name
+    def __init__(self, start_year: int, end_year: int,
+                       headers: dict, lang: str, process_counter: int,
+                       metadata_save_path: str, movie_detail_save_path: str,
+                       metadata_file_name: str, movie_detail_file_name: str,
+                       metadata_url: str, movie_detail_url: str
+                 ) -> None:
         self.__start_year = start_year
         self.__end_year = end_year
-
-        self.__url = url
-        self.__lang = lang
         self.__headers = headers
+        self.__lang = lang
         self.__process_counter = process_counter
 
-    # Set-Get
-    @property
-    def save_path(self):
-        return self.__save_path
+        self.__metadata_save_path = metadata_save_path
+        self.__metadata_file_name = metadata_file_name
+        self.__metadata_url = metadata_url
 
-    @save_path.setter
-    def save_path(self, value):
-        self.__save_path = value
-
-    @property
-    def start_year(self):
-        return self.__start_year
-
-    @start_year.setter
-    def start_year(self, value):
-        self.__start_year = value
-
-    @property
-    def end_year(self):
-        return self.__end_year
-
-    @end_year.setter
-    def end_year(self, value):
-        self.__end_year = value
-
-    @property
-    def lang(self):
-        return self.__lang
-
-    @lang.setter
-    def lang(self, value):
-        self.__lang = value
-
-    @property
-    def url(self):
-        return self.__url
-
-    @url.setter
-    def url(self, value):
-        self.__url = value
-
-    @property
-    def file_name(self):
-        return self.__file_name
-
-    @file_name.setter
-    def file_name(self, value):
-        self.__file_name = value
-
-    @property
-    def headers(self):
-        return self.__headers
-
-    @headers.setter
-    def headers(self, value):
-        self.__headers = value
-
-    @property
-    def process_counter(self):
-        return self.__process_counter
-
-    @process_counter.setter
-    def process_counter(self, process_counter: int):
-        self.__process_counter = process_counter
+        self.__movie_detail_save_path = movie_detail_save_path
+        self.__movie_detail_file_name = movie_detail_file_name
+        self.__movie_detail_url = movie_detail_url
 
 
     # Support methods
@@ -106,19 +51,20 @@ class Crawler:
 
 
     # Main Methods
-    def MetadataCrawler(self):
+    def Crawl(self) -> None:
         """
-        Returns: {obj1},
-                 {obj2},
-                 {obj3}
+        Returns data format: {obj1},
+                             {obj2},
+                             {obj3}
 
         Appropriate JSON format: [{obj1},
                                   {obj2},
                                   {obj3}]
-        => Don't forget to add "[" and "]" at the beginning and end of file after crawling procedure finished
+        => Don't forget to add "[" and "]" at the beginning and end of file after merge files
         """
+
         # write each process into separate file and merge 'em later
-        file_prefix = mp.current_process().name.split("-")[1]
+        prefix = mp.current_process().name.split("-")[1]
         file = os.path.join(self.__save_path, f"{file_prefix}_{self.__file_name}.{options.file_extension}")
 
         # start crawling
@@ -134,94 +80,18 @@ class Crawler:
                 # Test "results" field is available or not
                 try:
                     result: list = response.json()["results"]
+                    print(result[0]["id"])
                     result: List[str] = [json.dumps(json_object, indent=4) for json_object in result]
-                    # save to file
-                    if len(result) != 0:
-                        with open(file=file, mode="a", encoding="UTF-8") as f:
-                            for json_object in result:
-                                f.write(json_object + ",\n")
+
+                    # print(result)
+                # save to file
+                #     if len(result) != 0:
+                #         with open(file=file, mode="a", encoding="UTF-8") as f:
+                #             for json_object in result:
+                #                 f.write(json_object + ",\n")
                 except Exception as e:
                     print(e)
         return None
-
-
-def execute_metadata_crawling(save_path:str, file_name: str, start_year: int, end_year: int,
-                              headers: dict, url: str, lang: str, process_counter) -> None:
-    crawler = Crawler(save_path, file_name, start_year, end_year, headers, url, lang, process_counter)
-    crawler.MetadataCrawler()
-    return None
-
-
-def set_up_metadata_crawling() -> None:
-    start_time = time.time()
-    global options
-
-    # Init
-    process_counter = 0
-
-    lower_bound = options.start_year
-    interval = (options.end_year - options.start_year) // (options.num_of_processes - 1)  # last process handles remaining years
-
-    pool = Pool(processes=options.num_of_processes)
-    save_path = os.path.join(options.data_path, "metadata")
-
-    # map to multiprocesses
-    configurations = []
-    while lower_bound + interval < options.end_year:
-        # remaining years will be handled after this while loop
-        configurations.append((save_path, options.file_name, lower_bound, lower_bound + interval,
-                               options.headers, options.url, options.lang, process_counter))
-        # Update
-        lower_bound += interval
-        process_counter += 1
-
-    # Handle remaining years
-    configurations.append((save_path, options.file_name, lower_bound, options.end_year,
-                           options.headers, options.url, options.lang, process_counter))
-
-    # creates multiprocesses in pool
-    pool.starmap(func=execute_metadata_crawling, iterable=configurations)
-    print("Finished crawl in:", time.time() - start_time)
-    return None
-
-
-def set_up_movie_detail_crawling(metadata_path: str) -> None:
-    global options
-
-    pool = Pool(processes=options.num_of_processes)
-    options.file_name = os.path.join(options.save_path, f"{options.file_name}.{options.file_extension}")
-
-    with open(metadata_path, "r", encoding="UTF-8") as f:
-        df = json.loads(f.read())
-        df = pd.json_normalize(df)
-
-        # df = pd.read_json(json.dumps(metadata_path), orient="records", typ="records")
-        print(df)
-
-    # df = pd.json_normalize(df)
-
-    # json.decoder.JSONDecodeError: Extra data: line 23 column 2 (char 756)
-    # Solution ref: https://bobbyhadz.com/blog/python-jsondecodeerror-extra-data
-
-    # df = json.load(f)
-    # print(df)
-
-    # print(df)
-
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--lang", type=str, default="language=en-US&")
-parser.add_argument("--headers", type=dict, default={"accept": "application/json",
-                                                     "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU"})
-parser.add_argument("--start_year", type=int, default=1920)
-parser.add_argument("--end_year", type=int, default=2024)
-parser.add_argument("--num_of_processes", type=int, default=25)
-parser.add_argument("--data_path", type=str, default=os.path.join(os.getcwd(), "data", "raw_data"))
-parser.add_argument("--file_extension", type=str, default="json")
-# url, file_name: depend on what will be crawled
-parser.add_argument("--url", type=str)
-parser.add_argument("--file_name", type=str)
-options = parser.parse_args()
 
 
 def merge_tmp_file(dir: str, delete_tmp_file=False):
@@ -253,18 +123,163 @@ def merge_tmp_file(dir: str, delete_tmp_file=False):
             os.remove(os.path.join(path, file))
         print("Temp files have been removed")
 
-def main() -> None:
-    # Metadata crawling
-    options.url = "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&"
-    options.file_name = "metadata"
-    set_up_metadata_crawling()
-    merge_tmp_file(dir="metadata")
 
-    # Movie detail crawling
-    # metadata_path = os.path.join(options.save_path, f"{options.file_name}.{options.file_extension}")
-    # options.url = "https://api.themoviedb.org/3/movie/"
-    # options.file_name = "movie_detail"
-    # set_up_movie_detail_crawling(metadata_path)
+# def execute_metadata_crawling(save_path:str, file_name: str, start_year: int, end_year: int,
+#                               headers: dict, url: str, lang: str, process_counter) -> None:
+#     crawler = Crawler(save_path, file_name, start_year, end_year, headers, url, lang, process_counter)
+#     crawler.MetadataCrawler()
+#     return None
+
+#
+# def set_up_metadata_crawling() -> None:
+#     global options
+#
+#     # Init
+#
+#
+#     lower_bound = options.start_year
+#     interval = (options.end_year - options.start_year) // options.num_of_processes  # last process handled by the first process
+#
+#     pool = Pool(processes=options.num_of_processes)
+#     save_path = os.path.join(options.data_path, "metadata")
+#
+#     # map to multiprocesses
+#     configurations = []
+#     while lower_bound + interval < options.end_year:
+#         # remaining years will be handled after this while loop
+#         configurations.append((save_path, options.file_name, lower_bound, lower_bound + interval,
+#                                options.headers, options.url, options.lang, process_counter))
+#         # Update
+#         lower_bound += interval
+#         process_counter += 1
+#
+#     # Handle remaining years
+#     configurations.append((save_path, options.file_name, lower_bound, options.end_year,
+#                            options.headers, options.url, options.lang, process_counter))
+#     pp(configurations)
+#
+#     # creates multiprocesses in pool
+#     pool.starmap(func=execute_metadata_crawling, iterable=configurations)
+#     return None
+
+
+def execute_crawling(start_year: int, end_year: int,
+                     headers: dict, lang: str, process_counter: int,
+                     metadata_save_path: str, movie_detail_save_path: str,
+                     metadata_file_name: str, movie_detail_file_name: str,
+                     metadata_url: str, movie_detail_url: str):
+
+    crawler = Crawler(start_year, end_year,
+                      headers, lang, process_counter,
+                      metadata_save_path, movie_detail_save_path,
+                      metadata_file_name, movie_detail_file_name,
+                      metadata_url, movie_detail_url)
+    crawler.Crawl()
+    return None
+
+
+def set_up_crawling(options: dict) -> None:
+    # For multiprocessing
+    pool = Pool(processes=options.num_of_processes+1)
+    process_counter = 0
+
+    # For movie_detail
+    movie_detail_save_path = os.path.join(options.data_path, "movie_detail")
+
+    # For metadata
+    metadata_save_path = os.path.join(options.data_path, "metadata")
+
+    lower_bound = options.start_year
+    interval = (options.end_year - options.start_year) // options.num_of_processes  # last process handled by the first process             options.end_year - options.start_year) // options.num_of_processes  # last process handled by the first process
+    print(lower_bound, interval, options.end_year)
+
+    # Map to multiprocesses
+    configurations = []
+    while lower_bound + interval < options.end_year:
+        # remaining years will be handled after this while loop
+        configurations.append((options.start_year, options.end_year,
+                      options.headers, options.lang, process_counter,
+                      metadata_save_path, movie_detail_save_path,
+                      options.metadata_file_name, options.movie_detail_file_name,
+                      options.metadata_url, options.movie_detail_url))
+        
+        # Update boundary for metadata crawling
+        lower_bound += interval
+        process_counter += 1
+
+    # Handle remaining years
+    configurations.append((options.start_year, options.end_year,
+                           options.headers, options.lang, process_counter,
+                           metadata_save_path, movie_detail_save_path,
+                           options.metadata_file_name, options.movie_detail_file_name,
+                           options.metadata_url, options.movie_detail_url))
+    # Check configs
+    pp(configurations)
+
+    # creates multiprocesses in pool
+    # pool.starmap(func=execute_metadata_crawling, iterable=configurations)
+
+
+    # retrieve film id from metadata
+    # decoded_json_str = json_decoder(open(metadata_path, "r", encoding="UTF-8").read())
+    # total_json_obj = None
+    # counter = 0
+    # for obj in decoded_json_str:
+    #     counter += 1
+    #     print(counter)
+
+    # map to multiprocesses
+    # configurations = []
+    # while lower_bound + interval < options.end_year:
+    #     # remaining years will be handled after this while loop
+    #     configurations.append((save_path, options.file_name, lower_bound, lower_bound + interval,
+    #                            options.headers, options.url, options.lang, process_counter))
+    #     # Update
+    #     lower_bound += interval
+    #     process_counter += 1
+    # 
+    # # Handle remaining years
+    # configurations.append((save_path, options.file_name, lower_bound, options.end_year,
+    #                        options.headers, options.url, options.lang, process_counter))
+    # pp(configurations)
+    # 
+    # # creates multiprocesses in pool
+    # pool.starmap(func=execute_metadata_crawling, iterable=configurations)
+    # print("Finished crawl in:", time.time() - start_time)
+    return None
+
+
+
+
+def main() -> None:
+    """
+    This script is used to crawl data from TMDB including two procedures:
+        + Metadata
+        + Use id from metadata to crawl movie detail
+    Therefore, 1 process will be used for crawl both
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--lang", type=str, default="language=en-US&")
+    parser.add_argument("--headers", type=dict, default={"accept": "application/json",
+                                                         "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU"})
+    parser.add_argument("--num_of_processes", type=int, default=3)
+    parser.add_argument("--data_path", type=str, default=os.path.join(os.getcwd(), "data", "raw_data"))
+    parser.add_argument("--file_extension", type=str, default="json")
+
+    # For metadat
+    parser.add_argument("--start_year", type=int, default=1920)
+    parser.add_argument("--end_year", type=int, default=2024)
+    parser.add_argument("--metadata_url", type=str,
+                        default="https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&")
+    parser.add_argument("--metadata_file_name", type=str, default="metadata")
+
+    # For movie detail
+    parser.add_argument("--movie_detail_url", type=str, default="https://api.themoviedb.org/3/movie/")
+    parser.add_argument("--movie_detail_file_name", type=str, default="movie_detail")
+
+    options: Namespace = parser.parse_args()
+
+    set_up_crawling(options)
     return None
 
 
