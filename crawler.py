@@ -84,33 +84,29 @@ class Crawler:
                 # Test "results" field is available or not
                 try:
                     meta_data_result: list = metadata_response.json()["results"]
-                    meta_data_json: List[str] = [json.dumps(json_object, indent=4) for json_object in meta_data_result]
-                    # print(result)
+                    meta_data_json_str: List[str] = [json.dumps(json_object, indent=4) for json_object in meta_data_result]
+
                     # save to file
-                    #     if len(result) != 0:
-                    #         with open(file=file, mode="a", encoding="UTF-8") as f:
-                    #             for json_object in result:
-                    #                 f.write(json_object + ",\n")
+                    if len(meta_data_json_str) != 0:
+                        with open(file=metadata_file_name, mode="a", encoding="UTF-8") as f:
+                            for json_object in meta_data_json_str:
+                                f.write(json_object + ",\n")
+
 
                     # crawl movie detail
                     id = meta_data_result[0]["id"]
                     movie_detail_url = self.__movie_detail_url + str(id) + "?" + self.__lang
                     movie_detail_response = rq.get(movie_detail_url, headers=self.__headers)
-                    movie_detail_result = json.dumps(movie_detail_response.json(), indent=4)
-                    print(movie_detail_result)
+                    movie_detail_json_str: dict = movie_detail_response.json()
+                    movie_detail_json_str: str = json.dumps(movie_detail_json_str)
 
-                    print()
-                    print()
+                    # save to file
+                    # don't need try catch cuz data is always available
+                    if len(movie_detail_json_str) != 0:
+                        with open(file=movie_detail_file_name, mode="a", encoding="UTF-8") as f:
+                            f.write(movie_detail_json_str + ",\n")
                 except Exception as e:
                     print(e)
-                #
-                # https: // api.themoviedb.org / 3 / movie / 19995 ?language = en - US
-
-                # # Test "id" field is available or not
-                # try:
-                # except Exception as e:
-                #     print(e)
-
         return None
 
 
@@ -211,13 +207,12 @@ def set_up_crawling(options: dict) -> None:
 
     lower_bound = options.start_year
     interval = (options.end_year - options.start_year) // options.num_of_processes  # last process handled by the first process             options.end_year - options.start_year) // options.num_of_processes  # last process handled by the first process
-    print(lower_bound, interval, options.end_year)
 
     # Map to multiprocesses
     configurations = []
     while lower_bound + interval < options.end_year:
         # remaining years will be handled after this while loop
-        configurations.append((options.start_year, options.end_year,
+        configurations.append((lower_bound, lower_bound + interval,
                                options.headers, options.lang, process_counter, options.file_extension,
                                metadata_save_path, movie_detail_save_path,
                                options.metadata_file_name, options.movie_detail_file_name,
@@ -228,7 +223,7 @@ def set_up_crawling(options: dict) -> None:
         process_counter += 1
 
     # Handle remaining years
-    configurations.append((options.start_year, options.end_year,
+    configurations.append((lower_bound, options.end_year,
                            options.headers, options.lang, process_counter, options.file_extension,
                            metadata_save_path, movie_detail_save_path,
                            options.metadata_file_name, options.movie_detail_file_name,
@@ -282,15 +277,14 @@ def main() -> None:
     parser.add_argument("--lang", type=str, default="language=en-US&")
     parser.add_argument("--headers", type=dict, default={"accept": "application/json",
                                                          "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU"})
-    parser.add_argument("--num_of_processes", type=int, default=1)
+    parser.add_argument("--num_of_processes", type=int, default=25)
     parser.add_argument("--data_path", type=str, default=os.path.join(os.getcwd(), "data", "raw_data"))
     parser.add_argument("--file_extension", type=str, default="json")
 
     # For metadat
     parser.add_argument("--start_year", type=int, default=1920)
     parser.add_argument("--end_year", type=int, default=2024)
-    parser.add_argument("--metadata_url", type=str,
-                        default="https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&")
+    parser.add_argument("--metadata_url", type=str, default="https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&")
     parser.add_argument("--metadata_file_name", type=str, default="metadata")
 
     # For movie detail
