@@ -19,7 +19,7 @@ from multiprocessing.pool import Pool
 
 class Crawler:
     def __init__(self, start_year: int, end_year: int,
-                       headers: dict, lang: str, process_counter: int,
+                       headers: dict, lang: str, process_counter: int,  file_extension: str,
                        metadata_save_path: str, movie_detail_save_path: str,
                        metadata_file_name: str, movie_detail_file_name: str,
                        metadata_url: str, movie_detail_url: str
@@ -29,6 +29,7 @@ class Crawler:
         self.__headers = headers
         self.__lang = lang
         self.__process_counter = process_counter
+        self.__file_extension = file_extension
 
         self.__metadata_save_path = metadata_save_path
         self.__metadata_file_name = metadata_file_name
@@ -43,7 +44,7 @@ class Crawler:
     def __GetTotalPages(self, year) -> int:
         # Get total pages for each year
         # page should be range from 1 to 500
-        url = self.__url + self.__lang + "year=" + str(year)
+        url = self.__metadata_url + self.__lang + "year=" + str(year)
 
         total_pages = rq.get(url, headers=self.__headers).json()['total_pages']
         total_pages = min(total_pages, 500)
@@ -65,63 +66,82 @@ class Crawler:
 
         # write each process into separate file and merge 'em later
         prefix = mp.current_process().name.split("-")[1]
-        file = os.path.join(self.__save_path, f"{file_prefix}_{self.__file_name}.{options.file_extension}")
+        metadata_file_name = os.path.join(self.__metadata_save_path, f"{prefix}_{self.__metadata_file_name}.{self.__file_extension}")
+        movie_detail_file_name = os.path.join(self.__movie_detail_save_path, f"{prefix}_{self.__movie_detail_file_name}.{self.__file_extension}")
 
         # start crawling
-        for year in tqdm(range(self.__start_year, self.__end_year), position=self.__process_counter,
-                         desc=f"Process: {file_prefix:3s} {self.__start_year} to {self.__end_year}", colour='white'):
+        for year in tqdm(range(self.__start_year, self.__end_year),
+                         position=self.__process_counter,
+                         desc=f"Process: {prefix:3s} {self.__start_year} to {self.__end_year}", colour='white'
+                         ):
             total_pages = self.__GetTotalPages(year)
 
             # Crawl page by page -- 1 page comprises 20 results
             for page in range(1, total_pages + 1):
-                url = self.__url + self.__lang + "year=" + str(year) + "&" + "page=" + str(page)
-                response = rq.get(url, headers=options.headers)
+                metadata_url = self.__metadata_url + self.__lang + "year=" + str(year) + "&" + "page=" + str(page)
+                metadata_response = rq.get(metadata_url, headers=self.__headers)
 
                 # Test "results" field is available or not
                 try:
-                    result: list = response.json()["results"]
-                    print(result[0]["id"])
-                    result: List[str] = [json.dumps(json_object, indent=4) for json_object in result]
-
+                    meta_data_result: list = metadata_response.json()["results"]
+                    meta_data_json: List[str] = [json.dumps(json_object, indent=4) for json_object in meta_data_result]
                     # print(result)
-                # save to file
-                #     if len(result) != 0:
-                #         with open(file=file, mode="a", encoding="UTF-8") as f:
-                #             for json_object in result:
-                #                 f.write(json_object + ",\n")
+                    # save to file
+                    #     if len(result) != 0:
+                    #         with open(file=file, mode="a", encoding="UTF-8") as f:
+                    #             for json_object in result:
+                    #                 f.write(json_object + ",\n")
+
+                    # crawl movie detail
+                    id = meta_data_result[0]["id"]
+                    movie_detail_url = self.__movie_detail_url + str(id) + "?" + self.__lang
+                    movie_detail_response = rq.get(movie_detail_url, headers=self.__headers)
+                    movie_detail_result = json.dumps(movie_detail_response.json(), indent=4)
+                    print(movie_detail_result)
+
+                    print()
+                    print()
                 except Exception as e:
                     print(e)
+                #
+                # https: // api.themoviedb.org / 3 / movie / 19995 ?language = en - US
+
+                # # Test "id" field is available or not
+                # try:
+                # except Exception as e:
+                #     print(e)
+
         return None
 
 
-def merge_tmp_file(dir: str, delete_tmp_file=False):
-    global options
-    path = os.path.join(options.data_path, "raw_data", dir)
-    file_lst = os.listdir(path)
-    file_name = f"{options.file_name}.{options.file_extension}"
-
-    # remove metadata.json if it exists
-    if file_name in file_lst:
-        file_lst.remove(file_name)
-        os.remove(os.path.join(path, file_name))
-        print("metadata.json has been deleted")
-
-    # Merge into one file
-    with open(file=os.path.join(path, f"{options.file_name}.{options.file_extension}"), mode="w", encoding="UTF-8") as writer:
-        for i in range(len(file_lst)):
-            with open(file=os.path.join(path, file_lst[i]), mode="r", encoding="UTF-8") as reader:
-                for obj in next(json_decoder(reader.read())):
-                    writer.write(json.dumps(obj, indent=4) + "\n")
-            if i == 1:
-                print(i, " file has been written")
-            else:
-                print(i, " file have been written")
-
-    # Delete temp files
-    if delete_tmp_file:
-        for file in file_lst:
-            os.remove(os.path.join(path, file))
-        print("Temp files have been removed")
+# def merge_tmp_file(dir: str, delete_tmp_file=False):
+#     global options
+#     path = os.path.join(options.data_path, "raw_data", dir)
+#     file_lst = os.listdir(path)
+#     file_name = f"{options.file_name}.{options.file_extension}"
+#
+#     # remove metadata.json if it exists
+#     if file_name in file_lst:
+#         file_lst.remove(file_name)
+#         os.remove(os.path.join(path, file_name))
+#         print("metadata.json has been deleted")
+#
+#     # Merge into one file
+#     with open(file=os.path.join(path, f"{options.file_name}.{options.file_extension}"), mode="w", encoding="UTF-8") as writer:
+#         for i in range(len(file_lst)):
+#             with open(file=os.path.join(path, file_lst[i]), mode="r", encoding="UTF-8") as reader:
+#                 for obj in next(json_decoder(reader.read())):
+#                     writer.write(json.dumps(obj, indent=4) + "\n")
+#             if i == 1:
+#                 print(i, " file has been written")
+#             else:
+#                 print(i, " file have been written")
+#
+#     # Delete temp files
+#     if delete_tmp_file:
+#         for file in file_lst:
+#             os.remove(os.path.join(path, file))
+#         print("Temp files have been removed")
 
 
 # def execute_metadata_crawling(save_path:str, file_name: str, start_year: int, end_year: int,
@@ -164,13 +184,13 @@ def merge_tmp_file(dir: str, delete_tmp_file=False):
 
 
 def execute_crawling(start_year: int, end_year: int,
-                     headers: dict, lang: str, process_counter: int,
+                     headers: dict, lang: str, process_counter: int, file_extension: str,
                      metadata_save_path: str, movie_detail_save_path: str,
                      metadata_file_name: str, movie_detail_file_name: str,
                      metadata_url: str, movie_detail_url: str):
 
     crawler = Crawler(start_year, end_year,
-                      headers, lang, process_counter,
+                      headers, lang, process_counter, file_extension,
                       metadata_save_path, movie_detail_save_path,
                       metadata_file_name, movie_detail_file_name,
                       metadata_url, movie_detail_url)
@@ -198,10 +218,10 @@ def set_up_crawling(options: dict) -> None:
     while lower_bound + interval < options.end_year:
         # remaining years will be handled after this while loop
         configurations.append((options.start_year, options.end_year,
-                      options.headers, options.lang, process_counter,
-                      metadata_save_path, movie_detail_save_path,
-                      options.metadata_file_name, options.movie_detail_file_name,
-                      options.metadata_url, options.movie_detail_url))
+                               options.headers, options.lang, process_counter, options.file_extension,
+                               metadata_save_path, movie_detail_save_path,
+                               options.metadata_file_name, options.movie_detail_file_name,
+                               options.metadata_url, options.movie_detail_url))
         
         # Update boundary for metadata crawling
         lower_bound += interval
@@ -209,15 +229,15 @@ def set_up_crawling(options: dict) -> None:
 
     # Handle remaining years
     configurations.append((options.start_year, options.end_year,
-                           options.headers, options.lang, process_counter,
+                           options.headers, options.lang, process_counter, options.file_extension,
                            metadata_save_path, movie_detail_save_path,
                            options.metadata_file_name, options.movie_detail_file_name,
                            options.metadata_url, options.movie_detail_url))
     # Check configs
-    pp(configurations)
+    # pp(configurations)
 
     # creates multiprocesses in pool
-    # pool.starmap(func=execute_metadata_crawling, iterable=configurations)
+    pool.starmap(func=execute_crawling, iterable=configurations)
 
 
     # retrieve film id from metadata
@@ -262,7 +282,7 @@ def main() -> None:
     parser.add_argument("--lang", type=str, default="language=en-US&")
     parser.add_argument("--headers", type=dict, default={"accept": "application/json",
                                                          "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU"})
-    parser.add_argument("--num_of_processes", type=int, default=3)
+    parser.add_argument("--num_of_processes", type=int, default=1)
     parser.add_argument("--data_path", type=str, default=os.path.join(os.getcwd(), "data", "raw_data"))
     parser.add_argument("--file_extension", type=str, default="json")
 
