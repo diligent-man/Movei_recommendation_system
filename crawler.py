@@ -11,7 +11,7 @@ import multiprocessing as mp
 from tqdm import tqdm
 from pprint import pprint as pp
 
-from typing import List
+from typing import List, Tuple, Any
 
 from json_decoder import json_decoder
 from multiprocessing.pool import Pool
@@ -80,7 +80,7 @@ class Crawler:
             for page in range(1, total_pages + 1):
                 metadata_url = self.__metadata_url + self.__lang + "year=" + str(year) + "&" + "page=" + str(page)
                 metadata_response = rq.get(metadata_url, headers=self.__headers)
-
+                time.sleep(.5)
                 # Test "results" field is available or not
                 try:
                     meta_data_result: list = metadata_response.json()["results"]
@@ -97,6 +97,7 @@ class Crawler:
                     id = meta_data_result[0]["id"]
                     movie_detail_url = self.__movie_detail_url + str(id) + "?" + self.__lang
                     movie_detail_response = rq.get(movie_detail_url, headers=self.__headers)
+                    time.sleep(.5)
                     movie_detail_json_str: dict = movie_detail_response.json()
                     movie_detail_json_str: str = json.dumps(movie_detail_json_str)
 
@@ -110,74 +111,36 @@ class Crawler:
         return None
 
 
-# def merge_tmp_file(dir: str, delete_tmp_file=False):
-#     global options
-#     path = os.path.join(options.data_path, "raw_data", dir)
-#     file_lst = os.listdir(path)
-#     file_name = f"{options.file_name}.{options.file_extension}"
-#
-#     # remove metadata.json if it exists
-#     if file_name in file_lst:
-#         file_lst.remove(file_name)
-#         os.remove(os.path.join(path, file_name))
-#         print("metadata.json has been deleted")
-#
-#     # Merge into one file
-#     with open(file=os.path.join(path, f"{options.file_name}.{options.file_extension}"), mode="w", encoding="UTF-8") as writer:
-#         for i in range(len(file_lst)):
-#             with open(file=os.path.join(path, file_lst[i]), mode="r", encoding="UTF-8") as reader:
-#                 for obj in next(json_decoder(reader.read())):
-#                     writer.write(json.dumps(obj, indent=4) + "\n")
-#             if i == 1:
-#                 print(i, " file has been written")
-#             else:
-#                 print(i, " file have been written")
-#
-#     # Delete temp files
-#     if delete_tmp_file:
-#         for file in file_lst:
-#             os.remove(os.path.join(path, file))
-#         print("Temp files have been removed")
+def merge_file(data_path, file_extension, file_name, delete_tmp_file=False) -> None:
+    file_path = os.path.join(data_path, file_name)
+    file_lst = os.listdir(file_path)
+    file_name_with_extension = f"{file_name}.{file_extension}"
 
+    # remove metadata.json if it exists
+    if file_name_with_extension in file_lst:
+        file_lst.remove(file_name_with_extension)
+        os.remove(os.path.join(file_path, file_name_with_extension))
+        print("metadata.json has been deleted")
 
-# def execute_metadata_crawling(save_path:str, file_name: str, start_year: int, end_year: int,
-#                               headers: dict, url: str, lang: str, process_counter) -> None:
-#     crawler = Crawler(save_path, file_name, start_year, end_year, headers, url, lang, process_counter)
-#     crawler.MetadataCrawler()
-#     return None
+    # Merge into one file
+    with open(file=os.path.join(file_path, file_name_with_extension), mode="w", encoding="UTF-8", errors='ignore') as writer:
+        for i in range(len(file_lst)):
+            with open(file=os.path.join(file_path, file_lst[i]), mode="r", encoding="UTF-8", errors='ignore') as reader:
+                for obj in next(json_decoder(reader.read())):
+                    writer.write(json.dumps(obj, indent=4) + "\n")
+                    continue
 
-#
-# def set_up_metadata_crawling() -> None:
-#     global options
-#
-#     # Init
-#
-#
-#     lower_bound = options.start_year
-#     interval = (options.end_year - options.start_year) // options.num_of_processes  # last process handled by the first process
-#
-#     pool = Pool(processes=options.num_of_processes)
-#     save_path = os.path.join(options.data_path, "metadata")
-#
-#     # map to multiprocesses
-#     configurations = []
-#     while lower_bound + interval < options.end_year:
-#         # remaining years will be handled after this while loop
-#         configurations.append((save_path, options.file_name, lower_bound, lower_bound + interval,
-#                                options.headers, options.url, options.lang, process_counter))
-#         # Update
-#         lower_bound += interval
-#         process_counter += 1
-#
-#     # Handle remaining years
-#     configurations.append((save_path, options.file_name, lower_bound, options.end_year,
-#                            options.headers, options.url, options.lang, process_counter))
-#     pp(configurations)
-#
-#     # creates multiprocesses in pool
-#     pool.starmap(func=execute_metadata_crawling, iterable=configurations)
-#     return None
+            if i == 1:
+                print(i, " file has been written")
+            else:
+                print(i, " file have been written")
 
+    # Delete temp files
+    if delete_tmp_file:
+        for file in file_lst:
+            os.remove(os.path.join(file_path, file))
+        print("Temp files have been removed")
+    return None
 
 def execute_crawling(start_year: int, end_year: int,
                      headers: dict, lang: str, process_counter: int, file_extension: str,
@@ -233,37 +196,7 @@ def set_up_crawling(options: dict) -> None:
 
     # creates multiprocesses in pool
     pool.starmap(func=execute_crawling, iterable=configurations)
-
-
-    # retrieve film id from metadata
-    # decoded_json_str = json_decoder(open(metadata_path, "r", encoding="UTF-8").read())
-    # total_json_obj = None
-    # counter = 0
-    # for obj in decoded_json_str:
-    #     counter += 1
-    #     print(counter)
-
-    # map to multiprocesses
-    # configurations = []
-    # while lower_bound + interval < options.end_year:
-    #     # remaining years will be handled after this while loop
-    #     configurations.append((save_path, options.file_name, lower_bound, lower_bound + interval,
-    #                            options.headers, options.url, options.lang, process_counter))
-    #     # Update
-    #     lower_bound += interval
-    #     process_counter += 1
-    # 
-    # # Handle remaining years
-    # configurations.append((save_path, options.file_name, lower_bound, options.end_year,
-    #                        options.headers, options.url, options.lang, process_counter))
-    # pp(configurations)
-    # 
-    # # creates multiprocesses in pool
-    # pool.starmap(func=execute_metadata_crawling, iterable=configurations)
-    # print("Finished crawl in:", time.time() - start_time)
     return None
-
-
 
 
 def main() -> None:
@@ -277,7 +210,7 @@ def main() -> None:
     parser.add_argument("--lang", type=str, default="language=en-US&")
     parser.add_argument("--headers", type=dict, default={"accept": "application/json",
                                                          "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU"})
-    parser.add_argument("--num_of_processes", type=int, default=25)
+    parser.add_argument("--num_of_processes", type=int, default=50)
     parser.add_argument("--data_path", type=str, default=os.path.join(os.getcwd(), "data", "raw_data"))
     parser.add_argument("--file_extension", type=str, default="json")
 
@@ -292,8 +225,16 @@ def main() -> None:
     parser.add_argument("--movie_detail_file_name", type=str, default="movie_detail")
 
     options: Namespace = parser.parse_args()
+    # set_up_crawling(options)
 
-    set_up_crawling(options)
+
+    # Merge files
+    paras = [(options.data_path, options.file_extension, options.metadata_file_name),
+             (options.data_path, options.file_extension, options.movie_detail_file_name)]
+
+    para: Tuple[str, str, str]
+    for para in paras:
+        merge_file(*para, delete_tmp_file=False)
     return None
 
 
