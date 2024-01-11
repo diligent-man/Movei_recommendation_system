@@ -142,6 +142,7 @@ def merge_file(data_path, file_extension, file_name, delete_tmp_file=False) -> N
         print("Temp files have been removed")
     return None
 
+
 def execute_crawling(start_year: int, end_year: int,
                      headers: dict, lang: str, process_counter: int, file_extension: str,
                      metadata_save_path: str, movie_detail_save_path: str,
@@ -180,7 +181,7 @@ def set_up_crawling(options: dict) -> None:
                                metadata_save_path, movie_detail_save_path,
                                options.metadata_file_name, options.movie_detail_file_name,
                                options.metadata_url, options.movie_detail_url))
-        
+
         # Update boundary for metadata crawling
         lower_bound += interval
         process_counter += 1
@@ -214,7 +215,7 @@ def main() -> None:
     parser.add_argument("--data_path", type=str, default=os.path.join(os.getcwd(), "data", "raw_data"))
     parser.add_argument("--file_extension", type=str, default="json")
 
-    # For metadat
+    # For metadata
     parser.add_argument("--start_year", type=int, default=1920)
     parser.add_argument("--end_year", type=int, default=2024)
     parser.add_argument("--metadata_url", type=str, default="https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&")
@@ -229,12 +230,14 @@ def main() -> None:
 
 
     # Merge files
-    paras = [(options.data_path, options.file_extension, options.metadata_file_name),
-             (options.data_path, options.file_extension, options.movie_detail_file_name)]
+    # paras = [(options.data_path, options.file_extension, options.metadata_file_name),
+    #          (options.data_path, options.file_extension, options.movie_detail_file_name)]
 
-    para: Tuple[str, str, str]
-    for para in paras:
-        merge_file(*para, delete_tmp_file=False)
+    # para: Tuple[str, str, str]
+    # for para in paras:
+    #     merge_file(*para, delete_tmp_file=False)
+
+    
     return None
 
 

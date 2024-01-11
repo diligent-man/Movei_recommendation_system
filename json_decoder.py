@@ -144,7 +144,7 @@ def mixed_object_demo() -> None:
 
 def main() -> None:
     # single_object_demo()
-    # multiple_object_demo()
+    multiple_object_demo()
     # list_object_demo()
     # mixed_object_demo()
     return None
