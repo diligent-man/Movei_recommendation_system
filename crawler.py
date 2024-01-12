@@ -111,38 +111,6 @@ class Crawler:
         return None
 
 
-def merge_file(data_path, file_extension, file_name, delete_tmp_file=False) -> None:
-    file_path = os.path.join(data_path, file_name)
-    file_lst = os.listdir(file_path)
-    file_name_with_extension = f"{file_name}.{file_extension}"
-
-    # remove metadata.json if it exists
-    if file_name_with_extension in file_lst:
-        file_lst.remove(file_name_with_extension)
-        os.remove(os.path.join(file_path, file_name_with_extension))
-        print("metadata.json has been deleted")
-
-    # Merge into one file
-    with open(file=os.path.join(file_path, file_name_with_extension), mode="w", encoding="UTF-8", errors='ignore') as writer:
-        for i in range(len(file_lst)):
-            with open(file=os.path.join(file_path, file_lst[i]), mode="r", encoding="UTF-8", errors='ignore') as reader:
-                for obj in next(json_decoder(reader.read())):
-                    writer.write(json.dumps(obj, indent=4) + "\n")
-                    continue
-
-            if i == 1:
-                print(i, " file has been written")
-            else:
-                print(i, " file have been written")
-
-    # Delete temp files
-    if delete_tmp_file:
-        for file in file_lst:
-            os.remove(os.path.join(file_path, file))
-        print("Temp files have been removed")
-    return None
-
-
 def execute_crawling(start_year: int, end_year: int,
                      headers: dict, lang: str, process_counter: int, file_extension: str,
                      metadata_save_path: str, movie_detail_save_path: str,
@@ -200,6 +168,46 @@ def set_up_crawling(options: dict) -> None:
     return None
 
 
+def merge_file(data_path, file_extension, file_name, delete_tmp_file=False) -> None:
+    file_path = os.path.join(data_path, file_name)
+    file_lst = os.listdir(file_path)
+    file_name_with_extension = f"{file_name}.{file_extension}"
+
+    # remove metadata.json if it exists
+    if file_name_with_extension in file_lst:
+        file_lst.remove(file_name_with_extension)
+        os.remove(os.path.join(file_path, file_name_with_extension))
+        print("metadata.json has been deleted")
+
+    # Merge into one file
+    with open(file=os.path.join(file_path, file_name_with_extension), mode="w", encoding="UTF-8", errors='ignore') as writer:
+        for i in range(len(file_lst)):
+            with open(file=os.path.join(file_path, file_lst[i]), mode="r", encoding="UTF-8", errors='ignore') as reader:
+                for obj in next(json_decoder(reader.read())):
+                    writer.write(json.dumps(obj, indent=4) + "\n")
+                    continue
+
+            if i == 1:
+                print(i, " file has been written")
+            else:
+                print(i, " file have been written")
+
+    # Delete temp files
+    if delete_tmp_file:
+        for file in file_lst:
+            os.remove(os.path.join(file_path, file))
+        print("Temp files have been removed")
+    return None
+
+
+def en_movie_filtering(options: dict, path: str) -> None:
+    with open(file=path, mode="r", encoding="UTF-8", errors="ignore`") as f:
+        df = pd.DataFrame(json_decoder(f.read()))
+        df = df[df["original_language"] == "en"]
+        df.to_json(path_or_buf=path, orient="records", indent=4)
+    return None
+
+
 def main() -> None:
     """
     This script is used to crawl data from TMDB including two procedures:
@@ -237,7 +245,16 @@ def main() -> None:
     # for para in paras:
     #     merge_file(*para, delete_tmp_file=False)
 
-    
+
+    # Select en movie in metadata & movie_detail
+    paths = [os.path.join(options.data_path,
+                          options.metadata_file_name,
+                          f"{options.metadata_file_name}.{options.file_extension}"),
+            os.path.join(options.data_path,
+                         options.movie_detail_file_name,
+                         f"{options.movie_detail_file_name}.{options.file_extension}")]
+    for path in paths:
+        en_movie_filtering(options, path)
     return None
 
 
