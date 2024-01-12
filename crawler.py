@@ -204,6 +204,7 @@ def en_movie_filtering(options: dict, path: str) -> None:
     with open(file=path, mode="r", encoding="UTF-8", errors="ignore`") as f:
         df = pd.DataFrame(json_decoder(f.read()))
         df = df[df["original_language"] == "en"]
+        df = df.drop(labels="original_language", axis="columns")
         df.to_json(path_or_buf=path, orient="records", indent=4)
     return None
 
@@ -238,12 +239,12 @@ def main() -> None:
 
 
     # Merge files
-    # paras = [(options.data_path, options.file_extension, options.metadata_file_name),
-    #          (options.data_path, options.file_extension, options.movie_detail_file_name)]
+    paras = [(options.data_path, options.file_extension, options.metadata_file_name),
+             (options.data_path, options.file_extension, options.movie_detail_file_name)]
 
-    # para: Tuple[str, str, str]
-    # for para in paras:
-    #     merge_file(*para, delete_tmp_file=False)
+    para: Tuple[str, str, str]
+    for para in paras:
+        merge_file(*para, delete_tmp_file=False)
 
 
     # Select en movie in metadata & movie_detail
