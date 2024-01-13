@@ -205,6 +205,7 @@ def en_movie_filtering(options: dict, path: str) -> None:
         df = pd.DataFrame(json_decoder(f.read()))
         df = df[df["original_language"] == "en"]
         df = df.drop(labels="original_language", axis="columns")
+        df =df.drop_duplicates(subset="id", keep="first")
         df.to_json(path_or_buf=path, orient="records", indent=4)
     return None
 
