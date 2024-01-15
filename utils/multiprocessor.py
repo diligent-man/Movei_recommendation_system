@@ -7,7 +7,6 @@ class Multiprocessor:
     This class use Pool() for multiprocessing
     """
     def __init__(self, lower: int, upper: int, fixed_configurations: tuple, processes: int = None, process_counter: bool = True):
-        assert processes >= 1 or processes is None, 'processes should be >= 1 or None'
         assert lower < upper, 'Lower bound must be less than upper bound'
 
         if processes is None:
@@ -29,11 +28,15 @@ class Multiprocessor:
 
     def multiprocess_splitter(self, processes: int, process_counter: bool) -> List[Tuple]:
         if processes == 1:
-            return [(self.__lower, self.__upper, *self.__fixed_configurations)]
+            if process_counter:
+                return [(self.__lower, self.__upper, *self.__fixed_configurations, 0)]
+            else:
+                return [(self.__lower, self.__upper, *self.__fixed_configurations)]
+
         else:
             # This process is similar to minibatch splitting
             configurations = []
-            interval = (self.__upper - self.__lower) // processes
+            interval = int(round((self.__upper - self.__lower) / processes))
 
             # last process for handling residual interval
             for i in range(processes-1):
@@ -42,6 +45,11 @@ class Multiprocessor:
                 else:
                     configurations.append((self.__lower + i * interval, self.__lower + (i+1) * interval, *self.__fixed_configurations))
 
+                # Early stopping cond
+                if self.__lower + (i+2) * interval > self.__upper:
+                    break
+
+
             # Handling the residual interval
             if process_counter:
                 configurations.append((self.__lower + (i+1) * interval, self.__upper, *self.__fixed_configurations, i+1))
@@ -49,5 +57,5 @@ class Multiprocessor:
                 configurations.append((self.__lower + (i+1) * interval, self.__upper, *self.__fixed_configurations))
             return configurations
 
-    def __call__(self, func):
+    def __call__(self, func, configurations):
         self.__pool.starmap(func=func, iterable=self.__configurations)
