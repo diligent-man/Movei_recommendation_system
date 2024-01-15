@@ -1,0 +1,106 @@
+                                                   Overview
+There are 5 kinds of recommendation systems:
+    1/ Simple recommender
+    2/ Content-based recommender
+    3/ Collaborative filtering recommender
+    4/ Hybrid recommender
+
+Cor algorithm: Matrix factorization which uses alternating least square (ALS) algo
+   -> CuMF: CUDA-based MF that optimizes ALS algorithm
+
+
+ML approaches: 
+
+   
+DL approaches:
+   Neural Collaborative Filtering (NCF)
+   Variational Autoencoder (VAE) for Collaborative Filtering 
+   Contextual Sequence Learning
+   Wide & Deep
+   DLRM  
+
+
+
+
+                                             Use cases & Applications
+1/ E-commerce & Retail: Personalized merchandizing
+If a customer bought a scarf, then why not offer 'em a hat so the look will be complete
+    -> AI-based algorithm implemented in "Complete the look" or "You might also like" section of Amazon, Walmart, ...
+
+
+2/ Media & Entertainment: Personalized Content
+AI-based recommender engines analyze an individual's purchase behavior + detect patterns -> provide 'em the content that will most likely match their interests
+
+
+
+
+                                                   Benefits
++ Improving retention
++ Increasing sales -> Increasing revenue
++ Forming customer habit & trend
++ Speeding the pace of work (helpful with analysts and researchers)
+
+
+
+
+                                              Recommendation systems overview
+A/ Simple recommender
+Provide suggestion based on the popularity of an item
+
+
+B/ Content-based/ Content filtering recommender
+Use attributes or features of an item (CONTENT) to suggest other items similar to user's preference
+    -> Based on item & user features (E.g. User's age, category of a restaurant cuisine, movie genres, avg review for a movie) to model the likelihood for a new interaction
+
+
+Movie_1(Cast: Tom Cruise, genre: thriller)                      Movie_2(Cast: Tom Cruise, genre: thriller)
+            |                                                                   |
+         watched                                                             watched
+            |                                                                   |
+             --------------------------------- User ----------------------------
+                                                 |           
+                                    suggested by recommender
+                                                 |
+
+                    Recently_released_film(Cast: Tom Cruise, genre: thriller)
+
+
+
+C/ Collaborative filtering recommender
+Recommend items (FILTERING) based on preference info form many other users (COLLABORATIVE)
+Use similarity of user preference behavior given that previous interactions b/t users & items
+-> A & B share similar tastes in movies, recommender might suggest a movie to you that it knows other user already likes
+
+
+            Movie_1, Movie2, ....
+                     |
+                     |
+                     |
+        ----likes---- ------likes---
+        A                          B
+        |                          |
+     watched                       |
+        |                          |  
+        Another_movie---recommend---
+
+
+
+D/ Hybrid recommender
+Content filtering + Collaborative filtering -> a more comprehensive recommending system
+
+E/ Context filtering
+Encompass user's contextual info into recommendation process
+Use a sequence of contextual user actions + current context so as to predict the probability of the next action
+E.g. Netflix framed a recommendation as a contextual sequence prediction
+
+
+Time       Context                                          Action
+Day 1      Watched on laptop at 15:00, ...                  Original Star Trek
+Day 2      Watched on mobile phone at 2:00, ...             Star Trek Discovery
+Day 3      Watched on tablet at 7:00, ...                   80 days around the world
+
+
+probability_day_5 = Day_1_context + Day_2_context + Day_3_context
+                  = Treasure island
+
+
