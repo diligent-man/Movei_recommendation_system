@@ -28,7 +28,7 @@ class MetadataCrawler:
         # Get total pages for each year and page should be range from 1 to 500
         url = self.__url + self.__lang + "year=" + str(year)
         total_pages = rq.get(url, headers=self.__headers).json()['total_pages']
-        return total_pages
+        return min(total_pages, 500)
 
     # Main Methods
     def Crawl(self) -> None:

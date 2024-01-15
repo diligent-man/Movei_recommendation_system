@@ -1,8 +1,9 @@
 import os
 import argparse
+
+from typing import Dict
 from argparse import Namespace
 from pprint import pprint as pp
-from typing import Dict
 
 from utils.multiprocessor import Multiprocessor
 from crawlers.MetadataCrawler import MetadataCrawler
