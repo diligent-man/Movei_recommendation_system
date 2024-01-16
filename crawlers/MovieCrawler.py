@@ -7,7 +7,7 @@ from tqdm import tqdm
 from typing import List
 
 
-class MetadataCrawler:
+class MovieDetailCrawler:
     def __init__(self, start_index: int, end_index: int,
                  headers: dict, lang: str, url: str,
                  save_path: str, file_name: str, process_counter: int) -> None:
@@ -24,14 +24,14 @@ class MetadataCrawler:
     # Support methods
 
     # Main Methods
-    def Crawl(self) -> None:
+    def __call__(self) -> None:
         """
         Returns data format: {obj1},
                              {obj2},
                              {obj3},
                              ...
         """
-        file_name = os.path.join(self.__save_path, f"{self.__process_counter}.json")
+        print(self.__start_index)
 
         # start crawling
 

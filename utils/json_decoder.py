@@ -1,5 +1,4 @@
 import re
-import json
 import pandas as pd
 from json import JSONDecoder, JSONDecodeError
 

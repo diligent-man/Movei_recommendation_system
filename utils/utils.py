@@ -1,8 +1,4 @@
 import os
-import sys
-
-sys.path.append("utils")
-
 import json
 import pandas as pd
 from pprint import pp
@@ -69,8 +65,15 @@ def count_movies_by_lang(file: str) -> None:
     with open(file=file, mode="r", encoding="UTF-8", errors="ignore`") as f:
         data = json_decoder(f.read())
         df = pd.DataFrame(next(data))
-
+        df = df.drop_duplicates(subset="id", keep="first")
         result = df.groupby(by="original_language", axis="index").count()
         pp(sorted(result.adult.to_dict().items(), key=lambda item: item[1], reverse=True))
+
+def count_en_movies(file: str) -> int:
+    with open(file=file, mode="r", encoding="UTF-8", errors="ignore`") as f:
+        data = json_decoder(f.read())
+        df = pd.DataFrame(next(data))
+        return len(df)
+
 
 
