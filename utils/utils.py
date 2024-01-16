@@ -1,8 +1,12 @@
 import os
+import sys
+sys.path.append(os.path.join(os.getcwd(), "utils"))
+
 import json
 import pandas as pd
+import json_decoder
 from pprint import pp
-from json_decoder import json_decoder
+
 
 
 def merge_file(data_path: str, file_name: str, delete_tmp_file=False) -> None:
@@ -25,7 +29,7 @@ def merge_file(data_path: str, file_name: str, delete_tmp_file=False) -> None:
                 data = reader.read()[:-2] # remove last line and last comma
                 data = json.dumps(data)
                 # writer.write(next(json_decoder(json.dumps(reader.read()))) + ",\n")
-                for obj in json_decoder(data):
+                for obj in json_decoder.json_decoder(data):
                     writer.write(obj)
 
             print(i, " file has been written") if i == 1 else print(i, " file have been written")
@@ -46,7 +50,7 @@ def merge_file(data_path: str, file_name: str, delete_tmp_file=False) -> None:
 
 def en_movie_filtering(file: str) -> None:
     with open(file=file, mode="r", encoding="UTF-8", errors="ignore`") as f:
-        data = json_decoder(f.read())
+        data = json_decoder.json_decoder(f.read())
         df = pd.DataFrame(next(data))
 
         df = df[df["original_language"] == "en"]
@@ -63,15 +67,16 @@ def count_movies_by_lang(file: str) -> None:
         This function must run prior to merging files
     """
     with open(file=file, mode="r", encoding="UTF-8", errors="ignore`") as f:
-        data = json_decoder(f.read())
+        data = json_decoder.json_decoder(f.read())
         df = pd.DataFrame(next(data))
         df = df.drop_duplicates(subset="id", keep="first")
         result = df.groupby(by="original_language", axis="index").count()
         pp(sorted(result.adult.to_dict().items(), key=lambda item: item[1], reverse=True))
 
+
 def count_en_movies(file: str) -> int:
     with open(file=file, mode="r", encoding="UTF-8", errors="ignore`") as f:
-        data = json_decoder(f.read())
+        data = json_decoder.json_decoder(f.read())
         df = pd.DataFrame(next(data))
         return len(df)
 

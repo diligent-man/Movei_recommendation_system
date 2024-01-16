@@ -1,3 +1,4 @@
+
 import os
 import argparse
 
@@ -9,7 +10,8 @@ from crawlers.MetadataCrawler import MetadataCrawler
 from crawlers.MovieCrawler import MovieDetailCrawler
 
 from multiprocessor.multiprocessor import Multiprocessor
-from utils.utils import merge_file, en_movie_filtering, count_en_movies
+from utils.utils import count_en_movies, merge_file, en_movie_filtering
+
 
 
 def metadata_crawler_init(start: int, end: int,
@@ -41,8 +43,8 @@ def main(options: Dict) -> None:
     # print("Just spawn", len(multiprocessor.configurations), 'processes for the sake of balanced interval')
     # pp(multiprocessor.configurations)
     # multiprocessor(metadata_crawler_init, fixed_configurations)
-
-    # Merge files & Filter en films
+    #
+    # # Merge files & Filter en films
     # merge_file(data_path=options.data_path, file_name=options.file_name)
     # en_movie_filtering(os.path.join(save_path, f"{options.file_name}.json"))  # en: 261734 films (verified)
 
@@ -50,7 +52,7 @@ def main(options: Dict) -> None:
 
     # Movie detail crawling
     num_of_en_movies = count_en_movies(os.path.join(save_path, f"{options.file_name}.json"))
-    options.num_of_processes = 42
+    options.num_of_processes = 50
     options.url = "https://api.themoviedb.org/3/movie/"
     options.file_name = "movie_detail"
 
