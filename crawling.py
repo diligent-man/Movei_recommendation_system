@@ -7,7 +7,7 @@ from pprint import pprint as pp
 
 from utils.multiprocessor import Multiprocessor
 from crawlers.MetadataCrawler import MetadataCrawler
-# from utils.utils import merge_file, en_movie_filtering
+from utils.utils import merge_file, en_movie_filtering
 
 
 def metadata_crawling(start_year: int, end_year: int,
@@ -15,8 +15,8 @@ def metadata_crawling(start_year: int, end_year: int,
                       save_path: str, file_name: str, process_counter: int):
 
     crawler = MetadataCrawler(start_year, end_year, headers, lang, url,
-                             save_path, file_name, process_counter)
-    crawler.Crawl()
+                              save_path, file_name, process_counter)
+    crawler()
     return None
 
 
@@ -29,37 +29,24 @@ def main(options: Dict) -> None:
     save_path = os.path.join(options.data_path, options.file_name)
     fixed_configurations = (options.headers, options.lang, options.url, save_path, options.file_name)
 
-    multiprocessor = Multiprocessor(options.start_year, options.end_year, fixed_configurations, options.num_of_processes)
+    # multiprocessor = Multiprocessor(options.start_year, options.end_year, fixed_configurations, options.num_of_processes)
     # print("Just spawn", len(multiprocessor.configurations), 'processes for the sake of balanced interval')
     # pp(multiprocessor.configurations)
-    multiprocessor(metadata_crawling, fixed_configurations)
+    # multiprocessor(metadata_crawling, fixed_configurations)
 
     # Merge files
     # merge_file(data_path=options.data_path, file_name=options.file_name)
-    # en_movie_filtering(os.path.join(save_path, f"{options.file_name}.json"))
+    en_movie_filtering(os.path.join(save_path, f"{options.file_name}.json"))  # en: 261734 films (verified)
+
+    # Movie detail crawling
+    options.num_of_processes = 42
+    options.url = "https://api.themoviedb.org/3/movie/"
+    options.file_name = "movie_detail"
+
+    save_path = os.path.join(options.data_path, options.file_name)
+    fixed_configurations = (options.headers, options.lang, options.url, save_path, options.file_name)
 
 
-
-
-
-    # Merge files
-    # paras = [(options.data_path, options.file_extension, options.metadata_file_name),
-    #          (options.data_path, options.file_extension, options.movie_detail_file_name)]
-    #
-    # para: Tuple[str, str, str]
-    # for para in paras:
-    #     merge_file(*para, delete_tmp_file=False)
-
-
-    # Select en movie in metadata & movie_detail
-    # paths = [os.path.join(options.data_path,
-    #                       options.metadata_file_name,
-    #                       f"{options.metadata_file_name}.{options.file_extension}"),
-    #         os.path.join(options.data_path,
-    #                      options.movie_detail_file_name,
-    #                      f"{options.movie_detail_file_name}.{options.file_extension}")]
-    # for path in paths:
-    #     en_movie_filtering(options, path)
     return None
 
 

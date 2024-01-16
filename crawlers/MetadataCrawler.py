@@ -31,7 +31,7 @@ class MetadataCrawler:
         return min(total_pages, 500)
 
     # Main Methods
-    def Crawl(self) -> None:
+    def __call__(self) -> None:
         """
         Returns data format: {obj1},
                              {obj2},
