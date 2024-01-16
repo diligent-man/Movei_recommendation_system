@@ -1,26 +1,21 @@
 import os
+import sys
+sys.path.append(os.path.join(os.getcwd(), "crawlers"))
 
 import time
 import json
 import requests as rq
 
+
 from tqdm import tqdm
-from typing import List
+from typing import List, Type
+from AbstractCrawler import TMDBCrawler
 
-
-class MetadataCrawler:
-    def __init__(self, start_year: int, end_year: int,
+class MetadataCrawler(TMDBCrawler):
+    def __init__(self, start: int, end: int,
                  headers: dict, lang: str, url: str,
                  save_path: str, file_name: str, process_counter: int) -> None:
-        self.__start_year = start_year
-        self.__end_year = end_year
-        self.__headers = headers
-        self.__lang = lang
-        self.__process_counter = process_counter
-
-        self.__save_path = save_path
-        self.__file_name = file_name
-        self.__url = url
+        super().__init__(start, end, headers, lang, url, save_path, file_name, process_counter)
 
     # Support methods
     def __GetTotalPages(self, year) -> int:
@@ -29,6 +24,7 @@ class MetadataCrawler:
         url = self.__url + self.__lang + "year=" + str(year)
         total_pages = rq.get(url, headers=self.__headers).json()['total_pages']
         return min(total_pages, 500)
+
 
     # Main Methods
     def __call__(self) -> None:
@@ -41,9 +37,9 @@ class MetadataCrawler:
         file_name = os.path.join(self.__save_path, f"{self.__process_counter}.json")
 
         # start crawling
-        for year in tqdm(range(self.__start_year, self.__end_year),
+        for year in tqdm(range(self.__start, self.__end),
                          position=self.__process_counter,
-                         desc=f"Process: {self.__process_counter}, {self.__start_year} to {self.__end_year}",
+                         desc=f"Process: {self.__process_counter}, {self.__start} to {self.__end}",
                          colour='white'):
             total_pages = self.__GetTotalPages(year)
 

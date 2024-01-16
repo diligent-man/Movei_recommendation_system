@@ -1,4 +1,4 @@
-
+import sys
 import os
 import argparse
 
@@ -7,11 +7,10 @@ from argparse import Namespace
 from pprint import pprint as pp
 
 from crawlers.MetadataCrawler import MetadataCrawler
-from crawlers.MovieCrawler import MovieDetailCrawler
+from crawlers.MovieDetailCrawler import MovieDetailCrawler
 
 from multiprocessor.multiprocessor import Multiprocessor
 from utils.utils import count_en_movies, merge_file, en_movie_filtering
-
 
 
 def metadata_crawler_init(start: int, end: int,
@@ -61,9 +60,9 @@ def main(options: Dict) -> None:
 
     multiprocessor = Multiprocessor(lower=0, upper=num_of_en_movies, fixed_configurations=fixed_configurations,
                                     processes=options.num_of_processes)
-    print("Just spawn", len(multiprocessor.configurations), 'processes for the sake of balanced interval')
-    pp(multiprocessor.configurations)
-    multiprocessor(movie_detail_crawler_init, fixed_configurations)
+    print("Spawned", len(multiprocessor.configurations), "processes")
+    # pp(multiprocessor.configurations)
+    multiprocessor(mov ie_detail_crawler_init, fixed_configurations)
     return None
 
 

@@ -5,21 +5,13 @@ import requests as rq
 
 from tqdm import tqdm
 from typing import List
+from AbstractCrawler import TMDBCrawler
 
-
-class MovieDetailCrawler:
-    def __init__(self, start_index: int, end_index: int,
+class MovieDetailCrawler(TMDBCrawler):
+    def __init__(self, start: int, end: int,
                  headers: dict, lang: str, url: str,
                  save_path: str, file_name: str, process_counter: int) -> None:
-        self.__start_index = start_index
-        self.__end_index = end_index
-        self.__headers = headers
-        self.__lang = lang
-        self.__process_counter = process_counter
-
-        self.__save_path = save_path
-        self.__file_name = file_name
-        self.__url = url
+        super().__init__(start, end, headers, lang, url, save_path, file_name, process_counter)
 
     # Support methods
 
@@ -31,8 +23,6 @@ class MovieDetailCrawler:
                              {obj3},
                              ...
         """
-        print(self.__start_index)
-
+        print(self._start)
         # start crawling
-
         return None
