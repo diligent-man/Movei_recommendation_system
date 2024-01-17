@@ -39,6 +39,14 @@ def merge_file(data_path: str, file_name: str, delete_tmp_file=False) -> None:
 
         writer.write("]")
 
+    # Remove duplicates if exist
+    reader = open(file=os.path.join(file_path, f"{file_name}.json"), mode="r", encoding="UTF-8", errors='ignore')
+    df = pd.DataFrame(json.loads(reader.read()))
+    df.drop_duplicates(subset="id", keep="first", inplace=True)
+    df.to_json(os.path.join(file_path, f"{file_name}.json"), indent=4)
+    reader.close()
+    print("Duplicates dropped")
+
     # Delete temp files
     if delete_tmp_file:
         for file in file_lst:

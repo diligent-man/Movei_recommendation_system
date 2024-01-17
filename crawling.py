@@ -1,4 +1,5 @@
-import sys
+# Another solution instead of using sys.path.append hack
+# https://stackoverflow.com/questions/6323860/sibling-package-imports
 import os
 import argparse
 
@@ -23,8 +24,9 @@ def metadata_crawler_init(start: int, end: int,
 
 def movie_detail_crawler_init(start: int, end: int,
                               headers: dict, lang: str, url: str,
-                              save_path: str, file_name: str, process_counter: int):
-    crawler = MovieDetailCrawler(start, end, headers, lang, url, save_path, file_name, process_counter)
+                              save_path: str, file_name: str,
+                              metadata_path: str, process_counter: int):
+    crawler = MovieDetailCrawler(start, end, headers, lang, url, save_path, file_name, metadata_path, process_counter)
     crawler()
     return None
 
@@ -38,37 +40,40 @@ def main(options: Dict) -> None:
     save_path = os.path.join(options.data_path, options.file_name)
     fixed_configurations = (options.headers, options.lang, options.url, save_path, options.file_name)
 
-    # multiprocessor = Multiprocessor(options.start_year, options.end_year, fixed_configurations, options.num_of_processes)
-    # print("Just spawn", len(multiprocessor.configurations), 'processes for the sake of balanced interval')
-    # pp(multiprocessor.configurations)
-    # multiprocessor(metadata_crawler_init, fixed_configurations)
-    #
-    # # Merge files & Filter en films
-    # merge_file(data_path=options.data_path, file_name=options.file_name)
-    # en_movie_filtering(os.path.join(save_path, f"{options.file_name}.json"))  # en: 261734 films (verified)
+    multiprocessor = Multiprocessor(options.start_year, options.end_year, fixed_configurations, options.num_of_processes)
+    print("Just spawn", len(multiprocessor.configurations), 'processes for the sake of balanced interval')
+    pp(multiprocessor.configurations)
+    multiprocessor(metadata_crawler_init, fixed_configurations)
+
+    # Merge files & Filter en films
+    merge_file(data_path=options.data_path, file_name=options.file_name)
+    en_movie_filtering(os.path.join(save_path, f"{options.file_name}.json"))  # en: 261734 films (verified)
 
 
 
     # Movie detail crawling
-    num_of_en_movies = count_en_movies(os.path.join(save_path, f"{options.file_name}.json"))
-    options.num_of_processes = 50
+    metadata_path = os.path.join(save_path, f"{options.file_name}.json")
+    num_of_en_movies = count_en_movies(file=metadata_path)
+
+    options.num_of_processes = 63
     options.url = "https://api.themoviedb.org/3/movie/"
     options.file_name = "movie_detail"
-
     save_path = os.path.join(options.data_path, options.file_name)
-    fixed_configurations = (options.headers, options.lang, options.url, save_path, options.file_name)
 
-    multiprocessor = Multiprocessor(lower=0, upper=num_of_en_movies, fixed_configurations=fixed_configurations,
-                                    processes=options.num_of_processes)
+    fixed_configurations = (options.headers, options.lang, options.url, save_path, options.file_name, metadata_path)
+    multiprocessor = Multiprocessor(lower=0, upper=num_of_en_movies, fixed_configurations=fixed_configurations, processes=options.num_of_processes)
     print("Spawned", len(multiprocessor.configurations), "processes")
-    # pp(multiprocessor.configurations)
-    multiprocessor(mov ie_detail_crawler_init, fixed_configurations)
+    pp(multiprocessor.configurations)
+    multiprocessor(movie_detail_crawler_init, fixed_configurations)
+
+    # Merge files & Filter en films
+    merge_file(data_path=options.data_path, file_name=options.file_name)
     return None
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--lang", type=str, default="language=en-US&")
+    parser.add_argument("--lang", type=str, default="language=en-US")
     parser.add_argument("--headers", type=dict, default={"accept": "application/json",
                                                          "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjFhODEzOTg5MWY0NDU0YmI3MmMwOTRkZjk4MjMxMSIsInN1YiI6IjY0YWUyMTE2M2UyZWM4MDBhZjdmOTI5NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.u85xU7i1cX_jR69x4OBq24kDtOIdvpK3FbYLffwBWSU"})
     parser.add_argument("--data_path", type=str, default=os.path.join(os.getcwd(), "data", "raw_data"))
@@ -81,12 +86,5 @@ if __name__ == '__main__':
     parser.add_argument("--start_year", type=int, default=1900)
     parser.add_argument("--end_year", type=int, default=2024)
 
-
-    # For movie detail
-    # Movie detail just needs id from metadata for scraping
-    # parser.add_argument("--movie_detail_url", type=str, default="https://api.themoviedb.org/3/movie/")
-    # parser.add_argument("--movie_detail_file_name", type=str, default="movie_detail")
-
     options: Namespace = parser.parse_args()
-
-    main(options)
+    # main(options)
